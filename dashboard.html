@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HoneyPot Dashboard</title>
+    <style>
+        :root {
+            --bg-start: #1e3c72;
+            --bg-end: #2a5298;
+            --surface: rgba(255,255,255,0.95);
+            --text-primary: #1e3c72;
+            --text-secondary: #333;
+            --muted: #666;
+            --card-border: #1e3c72;
+            --card-border-critical: #f44336;
+            --card-border-high: #ff9800;
+            --tab-bg: #f5f5f5;
+            --tab-active: #1e3c72;
+            --table-head: #f5f5f5;
+            --row-hover: #f9f9f9;
+            --shadow: rgba(0,0,0,0.12);
+            --status-ok: #4CAF50;
+            --status-alert: #f44336;
+            --background: linear-gradient(135deg, var(--bg-start) 0%, var(--bg-end) 100%);
+            --button-bg: white;
+            --button-color: #333;
+            --button-border: #ddd;
+            --panel-bg: rgba(255,255,255,0.92);
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--background);
+            color: var(--text-secondary);
+            min-height: 100vh;
+            transition: background 0.4s ease, color 0.4s ease;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: var(--panel-bg);
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 16px 40px var(--shadow);
+            margin-bottom: 30px;
+            backdrop-filter: blur(12px);
+        }
+
+        h1 {
+            color: var(--text-primary);
+            margin-bottom: 10px;
+        }
+
+        header p {
+            color: var(--muted);
+            margin-bottom: 16px;
+        }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--status-ok);
+            color: white;
+            padding: 10px 18px;
+            border-radius: 999px;
+            font-weight: 700;
+            margin-top: 10px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+        }
+
+        .status.alert {
+            background: var(--status-alert);
+        }
+
+        .theme-selector {
+            margin-top: 18px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .theme-label {
+            color: var(--muted);
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .theme-btn {
+            border: 1px solid var(--button-border);
+            background: var(--button-bg);
+            color: var(--button-color);
+            padding: 10px 16px;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .theme-btn.active,
+        .theme-btn:hover {
+            transform: translateY(-1px);
+            border-color: var(--tab-active);
+            background: var(--tab-active);
+            color: white;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--panel-bg);
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 16px 40px var(--shadow);
+            border-left: 6px solid var(--card-border);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .stat-card.critical {
+            border-left-color: var(--card-border-critical);
+        }
+
+        .stat-card.high {
+            border-left-color: var(--card-border-high);
+        }
+
+        .stat-card h3 {
+            color: var(--muted);
+            font-size: 14px;
+            margin-bottom: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .stat-value {
+            font-size: 42px;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+
+        .stat-card.critical .stat-value {
+            color: var(--card-border-critical);
+        }
+
+        .tabs {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            box-shadow: 0 16px 40px var(--shadow);
+            overflow: hidden;
+            backdrop-filter: blur(12px);
+        }
+
+        .tab-buttons {
+            display: flex;
+            background: var(--tab-bg);
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 18px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-weight: 700;
+            color: var(--muted);
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn.active {
+            color: var(--text-primary);
+            border-bottom: 4px solid var(--tab-active);
+            background: rgba(255,255,255,0.56);
+        }
+
+        .tab-content {
+            display: none;
+            padding: 28px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 360px;
+        }
+
+        th {
+            background: var(--table-head);
+            padding: 14px;
+            text-align: left;
+            font-weight: 700;
+            border-bottom: 1px solid #e5e7eb;
+            color: var(--text-secondary);
+        }
+
+        td {
+            padding: 14px;
+            border-bottom: 1px solid #f0f2f6;
+            color: var(--text-secondary);
+        }
+
+        tr:hover {
+            background: var(--row-hover);
+        }
+
+        .threat-level {
+            display: inline-flex;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .threat-critical {
+            background: #f44336;
+            color: white;
+        }
+
+        .threat-high {
+            background: #ff9800;
+            color: white;
+        }
+
+        .threat-medium {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .threat-low {
+            background: #8bc34a;
+            color: white;
+        }
+
+        .threat-info {
+            background: #2196F3;
+            color: white;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--muted);
+        }
+
+        .pagination {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .pagination button {
+            padding: 10px 14px;
+            border: 1px solid var(--button-border);
+            background: var(--button-bg);
+            color: var(--button-color);
+            cursor: pointer;
+            border-radius: 999px;
+            transition: transform 0.2s ease;
+        }
+
+        .pagination button:hover {
+            transform: translateY(-1px);
+        }
+
+        .pagination button.active {
+            background: var(--tab-active);
+            color: white;
+            border-color: var(--tab-active);
+        }
+
+        .search-panel {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 220px;
+            padding: 14px 18px;
+            border-radius: 999px;
+            border: 1px solid var(--button-border);
+            background: rgba(255,255,255,0.95);
+            color: var(--text-secondary);
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.04);
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .search-input:focus {
+            border-color: var(--tab-active);
+            box-shadow: 0 0 0 4px rgba(56,189,248,0.12);
+        }
+
+        .search-btn {
+            padding: 14px 22px;
+            border-radius: 999px;
+            border: none;
+            background: var(--tab-active);
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.05);
+        }
+
+        .clear-btn {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--button-border);
+        }
+
+        .clear-btn:hover {
+            background: var(--button-bg);
+        }
+
+        .search-message {
+            flex: 1 1 100%;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-left: 12px;
+        }
+
+        .search-results {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            box-shadow: 0 16px 40px var(--shadow);
+            backdrop-filter: blur(12px);
+            padding: 24px;
+            margin-bottom: 30px;
+            animation: float-up 0.9s ease both;
+        }
+
+        .refresh-btn {
+            margin-left: 12px;
+            border: 1px solid var(--button-border);
+            background: var(--tab-active);
+            color: white;
+            padding: 10px 16px;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: transform 0.2s ease, filter 0.2s ease, background 0.2s ease;
+            font-weight: 700;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.08);
+        }
+
+        .search-results h2 {
+            margin-bottom: 14px;
+            color: var(--text-primary);
+        }
+
+        @keyframes float-up {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse-border {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(56,189,248,0.35); }
+            50% { box-shadow: 0 0 0 20px rgba(56,189,248,0); }
+        }
+
+        header {
+            animation: float-up 0.8s ease both;
+        }
+
+        .stat-card {
+            transition: transform 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-6px) scale(1.01);
+        }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--status-ok);
+            color: white;
+            padding: 10px 18px;
+            border-radius: 999px;
+            font-weight: 700;
+            margin-top: 10px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+            animation: pulse-border 3s ease-in-out infinite;
+        }
+
+        .status-meta {
+            margin-top: 10px;
+            color: var(--muted);
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .error-card {
+            background: rgba(244, 67, 54, 0.1);
+            border-left: 6px solid #f44336;
+            color: #b71c1c;
+            padding: 24px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            animation: float-up 0.8s ease both;
+        }
+
+        .error-card button {
+            margin-top: 16px;
+            padding: 12px 20px;
+            border-radius: 999px;
+            border: none;
+            background: #d32f2f;
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+
+        .error-card button:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.05);
+        }
+
+        .tab-btn.active {
+            transform: translateY(-2px);
+        }
+
+        .search-summary {
+            margin-bottom: 18px;
+            color: var(--muted);
+        }
+
+        .theme-light {
+            --bg-start: #f3f4f6;
+            --bg-end: #ffffff;
+            --surface: rgba(255,255,255,0.98);
+            --text-primary: #1d4ed8;
+            --text-secondary: #111827;
+            --muted: #475569;
+            --card-border: #2563eb;
+            --tab-bg: #f8fafc;
+            --tab-active: #2563eb;
+            --table-head: #f8fafc;
+            --row-hover: #eef2ff;
+            --button-bg: #ffffff;
+            --button-color: #111827;
+            --button-border: #d1d5db;
+            --shadow: rgba(15,23,42,0.08);
+            --status-ok: #16a34a;
+            --status-alert: #dc2626;
+        }
+
+        .theme-neon {
+            --bg-start: #0f172a;
+            --bg-end: #020617;
+            --surface: rgba(7, 15, 39, 0.92);
+            --text-primary: #38bdf8;
+            --text-secondary: #e2e8f0;
+            --muted: #94a3b8;
+            --card-border: #38bdf8;
+            --card-border-critical: #fb7185;
+            --card-border-high: #f97316;
+            --tab-bg: rgba(15,23,42,0.85);
+            --tab-active: #38bdf8;
+            --table-head: rgba(15,23,42,0.9);
+            --row-hover: rgba(56,189,248,0.08);
+            --button-bg: rgba(15,23,42,0.9);
+            --button-color: #e2e8f0;
+            --button-border: #0f172a;
+            --shadow: rgba(8,16,42,0.55);
+            --status-ok: #22c55e;
+            --status-alert: #f472b6;
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tab-buttons {
+                flex-wrap: wrap;
+            }
+
+            .tab-btn {
+                flex: 0 0 50%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🍯 HoneyPot Security Dashboard</h1>
+            <p>Real-time monitoring and threat detection system</p>
+            <div class="status">● Active and Monitoring</div>
+            <div class="status-meta" id="lastUpdate">Last updated: just now</div>
+            <div class="theme-selector">
+                <span class="theme-label">Choose theme:</span>
+                <button class="theme-btn active" data-theme="dark" onclick="setTheme('dark', this)">Dark</button>
+                <button class="theme-btn" data-theme="light" onclick="setTheme('light', this)">Light</button>
+                <button class="theme-btn" data-theme="neon" onclick="setTheme('neon', this)">Neon</button>
+                <button class="refresh-btn" onclick="reloadDashboard()">Refresh Now</button>
+            </div>
+            <div class="search-panel">
+                <input id="searchInput" class="search-input" type="search" placeholder="Search sessions by IP address..." />
+                <button class="search-btn" onclick="searchSessions()">Search</button>
+                <button class="search-btn clear-btn" onclick="clearSearch()">Clear</button>
+                <span id="searchMessage" class="search-message"></span>
+            </div>
+        </header>
+        
+        <div class="search-results" id="searchResults" style="display:none;">
+            <h2>Search Results</h2>
+            <div class="search-summary" id="searchSummary"></div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Client IP</th>
+                        <th>Service</th>
+                        <th>Duration</th>
+                        <th>Commands</th>
+                    </tr>
+                </thead>
+                <tbody id="searchResultsBody">
+                    <tr><td colspan="5" class="loading">Enter an IP and click Search to begin.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="stats-grid" id="statsContainer">
+            <div class="loading">Loading statistics...</div>
+        </div>
+
+        <div class="search-results" id="overviewPanel">
+            <h2>Threat Overview</h2>
+            <div id="overviewContent" class="stats-grid">
+                <div class="stat-card">
+                    <h3>Loading overview…</h3>
+                    <div class="stat-value">—</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tabs">
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="switchTab(event, 'sessions')">Sessions</button>
+                <button class="tab-btn" onclick="switchTab(event, 'alerts')">Alerts</button>
+                <button class="tab-btn" onclick="switchTab(event, 'topips')">Top IPs</button>
+            </div>
+            
+            <div id="sessions" class="tab-content active">
+                <h2>Recent Attack Sessions</h2>
+                <table id="sessionsTable">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Client IP</th>
+                            <th>Service</th>
+                            <th>Duration</th>
+                            <th>Commands</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sessionsBody">
+                        <tr><td colspan="5" class="loading">Loading sessions...</td></tr>
+                    </tbody>
+                </table>
+                <div class="pagination" id="sessionsPagination"></div>
+            </div>
+            
+            <div id="alerts" class="tab-content">
+                <h2>Security Alerts</h2>
+                <table id="alertsTable">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Client IP</th>
+                            <th>Threat Level</th>
+                            <th>Message</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alertsBody">
+                        <tr><td colspan="4" class="loading">Loading alerts...</td></tr>
+                    </tbody>
+                </table>
+                <div class="pagination" id="alertsPagination"></div>
+            </div>
+            
+            <div id="topips" class="tab-content">
+                <h2>Top Attacking IPs</h2>
+                <table id="topIpsTable">
+                    <thead>
+                        <tr>
+                            <th>IP Address</th>
+                            <th>Attack Count</th>
+                        </tr>
+                    </thead>
+                    <tbody id="topIpsBody">
+                        <tr><td colspan="2" class="loading">Loading data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = '/api';
+        const themeButtons = document.querySelectorAll('.theme-btn');
+        
+        function switchTab(evt, tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            document.getElementById(tabName).classList.add('active');
+            evt.currentTarget.classList.add('active');
+            
+            if (tabName === 'sessions') loadSessions(1);
+            else if (tabName === 'alerts') loadAlerts(1);
+            else if (tabName === 'topips') loadTopIps();
+        }
+        
+        function setTheme(theme, button = null) {
+            document.body.classList.remove('theme-light', 'theme-neon');
+            if (theme === 'light') {
+                document.body.classList.add('theme-light');
+            } else if (theme === 'neon') {
+                document.body.classList.add('theme-neon');
+            }
+            localStorage.setItem('dashboardTheme', theme);
+            
+            if (button) {
+                document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+            }
+        }
+        
+        function initTheme() {
+            const savedTheme = localStorage.getItem('dashboardTheme') || 'dark';
+            const activeButton = document.querySelector(`.theme-btn[data-theme="${savedTheme}"]`);
+            setTheme(savedTheme, activeButton || null);
+        }
+        
+        async function loadStats() {
+            try {
+                const response = await fetch(`${API_BASE}/stats`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const stats = await response.json();
+                
+                const html = `
+                    <div class="stat-card animated">
+                        <h3>Total Sessions</h3>
+                        <div class="stat-value">${stats.total_sessions}</div>
+                    </div>
+                    <div class="stat-card animated">
+                        <h3>Unique IPs</h3>
+                        <div class="stat-value">${stats.unique_ips}</div>
+                    </div>
+                    <div class="stat-card animated ${stats.total_alerts > 10 ? 'critical' : 'high'}">
+                        <h3>Total Alerts</h3>
+                        <div class="stat-value">${stats.total_alerts}</div>
+                    </div>
+                    <div class="stat-card animated critical">
+                        <h3>New Alerts</h3>
+                        <div class="stat-value">${stats.new_alerts}</div>
+                    </div>
+                `;
+                
+                document.getElementById('statsContainer').innerHTML = html;
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+                document.getElementById('statsContainer').innerHTML = `
+                    <div class="error-card">
+                        <strong>Unable to load statistics.</strong>
+                        <p>Please check that the backend server is running and try again.</p>
+                        <button onclick="reloadDashboard()">Retry</button>
+                    </div>
+                `;
+            }
+        }
+
+        async function loadOverview() {
+            try {
+                const response = await fetch(`${API_BASE}/overview`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+
+                const alertCounts = data.alert_counts || {};
+                const serviceCounts = data.service_counts || {};
+
+                const html = [];
+
+                html.push(`
+                    <div class="stat-card animated">
+                        <h3>Alerts by Threat</h3>
+                        <div class="stat-value">${Object.values(alertCounts).reduce((sum, v) => sum + v, 0)}</div>
+                        <p>${Object.entries(alertCounts).map(([level, count]) => `${getLevelName(Number(level))}: ${count}`).join(' · ')}</p>
+                    </div>
+                `);
+
+                html.push(`
+                    <div class="stat-card animated high">
+                        <h3>Top Service</h3>
+                        <div class="stat-value">${Object.keys(serviceCounts).length ? Object.entries(serviceCounts).sort((a, b) => b[1] - a[1])[0][0] : 'N/A'}</div>
+                        <p>${Object.keys(serviceCounts).length ? `${Object.entries(serviceCounts).sort((a, b) => b[1] - a[1])[0][1]} sessions` : ''}</p>
+                    </div>
+                `);
+
+                html.push(`
+                    <div class="stat-card animated medium">
+                        <h3>Services Active</h3>
+                        <div class="stat-value">${Object.keys(serviceCounts).length}</div>
+                        <p>${Object.entries(serviceCounts).map(([service, count]) => `${service}: ${count}`).join(' · ')}</p>
+                    </div>
+                `);
+
+                document.getElementById('overviewContent').innerHTML = html.join('');
+            } catch (error) {
+                console.error('Failed to load overview:', error);
+                document.getElementById('overviewContent').innerHTML = `
+                    <div class="error-card">
+                        <strong>Unable to load overview data.</strong>
+                        <p>Check that the HoneyPot dashboard backend is running and try again.</p>
+                        <button onclick="reloadDashboard()">Retry</button>
+                    </div>
+                `;
+            }
+        }
+        
+        async function loadSessions(page) {
+            try {
+                const response = await fetch(`${API_BASE}/sessions?page=${page}`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                
+                const body = document.getElementById('sessionsBody');
+                
+                if (data.sessions.length === 0) {
+                    body.innerHTML = '<tr><td colspan="5" class="loading">No sessions found</td></tr>';
+                    document.getElementById('sessionsPagination').innerHTML = '';
+                    return;
+                }
+                
+                body.innerHTML = data.sessions.map(session => `
+                    <tr>
+                        <td>${new Date(session.start_time).toLocaleString()}</td>
+                        <td><strong>${session.client_ip}</strong></td>
+                        <td>${session.service}</td>
+                        <td>${session.duration_seconds ? session.duration_seconds.toFixed(1) + 's' : 'N/A'}</td>
+                        <td>${session.command_count}</td>
+                    </tr>
+                `).join('');
+                
+                // Update pagination
+                document.getElementById('sessionsPagination').innerHTML = `
+                    <button onclick="loadSessions(${Math.max(1, page-1)})">← Previous</button>
+                    <span>Page ${page}</span>
+                    <button onclick="loadSessions(${page+1})">Next →</button>
+                `;
+            } catch (error) {
+                console.error('Failed to load sessions:', error);
+                document.getElementById('sessionsBody').innerHTML = `
+                    <tr><td colspan="5" class="loading">Unable to load sessions. Check backend connectivity.</td></tr>
+                `;
+                document.getElementById('sessionsPagination').innerHTML = `
+                    <button onclick="reloadDashboard()">Retry</button>
+                `;
+            }
+        }
+        
+        async function loadAlerts(page) {
+            try {
+                const response = await fetch(`${API_BASE}/alerts?page=${page}`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                
+                const body = document.getElementById('alertsBody');
+                
+                if (data.alerts.length === 0) {
+                    body.innerHTML = '<tr><td colspan="4" class="loading">No alerts found</td></tr>';
+                    document.getElementById('alertsPagination').innerHTML = '';
+                    return;
+                }
+                
+                body.innerHTML = data.alerts.map(alert => {
+                    const threatClass = `threat-${getLevelName(alert.threat_level).toLowerCase()}`;
+                    return `
+                        <tr>
+                            <td>${new Date(alert.timestamp).toLocaleString()}</td>
+                            <td><strong>${alert.client_ip}</strong></td>
+                            <td><span class="threat-level ${threatClass}">${getLevelName(alert.threat_level)}</span></td>
+                            <td>${alert.message}</td>
+                        </tr>
+                    `;
+                }).join('');
+                
+                // Update pagination
+                document.getElementById('alertsPagination').innerHTML = `
+                    <button onclick="loadAlerts(${Math.max(1, page-1)})">← Previous</button>
+                    <span>Page ${page}</span>
+                    <button onclick="loadAlerts(${page+1})">Next →</button>
+                `;
+            } catch (error) {
+                console.error('Failed to load alerts:', error);
+                document.getElementById('alertsBody').innerHTML = '<tr><td colspan="4" class="loading">Unable to load alerts. Check backend connectivity.</td></tr>';
+                document.getElementById('alertsPagination').innerHTML = `
+                    <button onclick="reloadDashboard()">Retry</button>
+                `;
+            }
+        }
+        
+        async function loadTopIps() {
+            try {
+                const response = await fetch(`${API_BASE}/top-ips`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                
+                const body = document.getElementById('topIpsBody');
+                
+                if (data.top_ips.length === 0) {
+                    body.innerHTML = '<tr><td colspan="2" class="loading">No data available</td></tr>';
+                    return;
+                }
+                
+                body.innerHTML = data.top_ips.map((item, index) => `
+                    <tr>
+                        <td><strong>${item.ip}</strong></td>
+                        <td>${item.count}</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load top IPs:', error);
+                document.getElementById('topIpsBody').innerHTML = '<tr><td colspan="2" class="loading">Unable to load top IPs. Check backend connectivity.</td></tr>';
+            }
+        }
+
+        async function searchSessions() {
+            const query = document.getElementById('searchInput').value.trim();
+            const message = document.getElementById('searchMessage');
+            const resultsSection = document.getElementById('searchResults');
+            const summary = document.getElementById('searchSummary');
+            const body = document.getElementById('searchResultsBody');
+
+            if (!query) {
+                message.textContent = 'Please enter an IP address or partial IP to search.';
+                resultsSection.style.display = 'none';
+                summary.textContent = '';
+                body.innerHTML = '<tr><td colspan="5" class="loading">Enter an IP and click Search to begin.</td></tr>';
+                return;
+            }
+
+            message.textContent = '';
+            summary.textContent = `Searching for "${query}"...`;
+            body.innerHTML = '<tr><td colspan="5" class="loading">Searching...</td></tr>';
+            resultsSection.style.display = 'block';
+
+            try {
+                const response = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+
+                summary.textContent = `Found ${data.total} result${data.total === 1 ? '' : 's'} for "${query}".`;
+
+                if (!data.results || data.results.length === 0) {
+                    body.innerHTML = '<tr><td colspan="5" class="loading">No sessions matched this search.</td></tr>';
+                    return;
+                }
+
+                body.innerHTML = data.results.map(session => `
+                    <tr>
+                        <td>${new Date(session.start_time).toLocaleString()}</td>
+                        <td><strong>${session.client_ip}</strong></td>
+                        <td>${session.service}</td>
+                        <td>${session.duration_seconds ? session.duration_seconds.toFixed(1) + 's' : 'N/A'}</td>
+                        <td>${session.command_count}</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Search failed:', error);
+                summary.textContent = 'Search failed. Please try again later.';
+                body.innerHTML = '<tr><td colspan="5" class="loading">Unable to load search results.</td></tr>';
+            }
+        }
+
+        function clearSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const message = document.getElementById('searchMessage');
+            const resultsSection = document.getElementById('searchResults');
+            const summary = document.getElementById('searchSummary');
+            const body = document.getElementById('searchResultsBody');
+
+            searchInput.value = '';
+            message.textContent = '';
+            resultsSection.style.display = 'none';
+            summary.textContent = '';
+            body.innerHTML = '<tr><td colspan="5" class="loading">Enter an IP and click Search to begin.</td></tr>';
+            searchInput.focus();
+        }
+
+        function getLevelName(level) {
+            const levels = { 1: 'INFO', 2: 'LOW', 3: 'MEDIUM', 4: 'HIGH', 5: 'CRITICAL' };
+            return levels[level] || 'UNKNOWN';
+        }
+        
+        // Load data on page load
+        initTheme();
+        document.getElementById('searchInput').addEventListener('keypress', event => {
+            if (event.key === 'Enter') {
+                searchSessions();
+            }
+        });
+        loadStats();
+        loadOverview();
+        loadSessions(1);
+        setLastUpdated();
+        
+        // Refresh stats and overview every 30 seconds
+        setInterval(() => {
+            loadStats();
+            loadOverview();
+        }, 30000);
+
+        function setLastUpdated() {
+            const lastUpdate = document.getElementById('lastUpdate');
+            if (!lastUpdate) return;
+            const now = new Date();
+            lastUpdate.textContent = `Last updated: ${now.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'})}`;
+        }
+
+        function reloadDashboard() {
+            loadStats();
+            loadOverview();
+            loadSessions(1);
+            loadAlerts(1);
+            loadTopIps();
+            setLastUpdated();
+        }
+    </script>
+</body>
+</html>
