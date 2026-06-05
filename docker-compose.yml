@@ -1,0 +1,122 @@
+version: '3.8'
+
+services:
+  # Elasticsearch for centralized logging
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.5.0
+    container_name: honeypot-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ELASTIC_PASSWORD=changeme
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - honeypot_network
+    healthcheck:
+      test: curl -s http://localhost:9200 >/dev/null || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Logstash for log processing and forwarding
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.5.0
+    container_name: honeypot-logstash
+    volumes:
+      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+      - ./logs:/var/log/honeypot:ro
+    ports:
+      - "5000:5000/tcp"
+      - "5000:5000/udp"
+      - "9600:9600"
+    environment:
+      - ELASTICSEARCH_HOST=elasticsearch:9200
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - honeypot_network
+
+  # Kibana for visualization and analytics
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.5.0
+    container_name: honeypot-kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    networks:
+      - honeypot_network
+
+  # Main honeypot with SSH/Telnet/HTTP/FTP/RDP
+  honeypot:
+    build: .
+    container_name: honeypot-main
+    environment:
+      - LOG_FILE=/var/log/honeypot/honeypot.log
+      - DB_PATH=/data/honeypot.db
+    command: python honeyPot_v2.py
+    ports:
+      - "21:21"      # FTP
+      - "22:22"      # SSH
+      - "23:23"      # Telnet
+      - "80:80"      # HTTP
+      - "3389:3389"  # RDP
+    volumes:
+      - ./config.json:/app/config.json
+      - ./logs:/var/log/honeypot
+      - honeypot_data:/data
+    depends_on:
+      - logstash
+    networks:
+      - honeypot_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Custom dashboard service
+    dashboard:
+      build: .
+      container_name: honeypot-dashboard
+      environment:
+        - FLASK_ENV=development
+        - DB_PATH=/data/honeypot.db
+      ports:
+        - "5000:5000"
+      volumes:
+        - ./config.json:/app/config.json
+        - honeypot_data:/data
+      command: python dashboard.py
+      depends_on:
+        - honeypot
+      networks:
+        - honeypot_network
+
+  # Optional: Redis for caching and alerts
+  redis:
+    image: redis:7-alpine
+    container_name: honeypot-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - honeypot_network
+    command: redis-server --appendonly yes
+
+volumes:
+  elasticsearch_data:
+  honeypot_data:
+  redis_data:
+
+networks:
+  honeypot_network:
+    driver: bridge

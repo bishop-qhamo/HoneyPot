@@ -9,8 +9,12 @@ from flask_cors import CORS
 from database import Database
 from config import Config
 from pathlib import Path
-import json
-from datetime import datetime, timedelta
+from datetime import datetime
+import os
+import smtplib
+from email.message import EmailMessage
+from alert_system import AlertSystem
+from logger import Logger
 
 
 class Dashboard:
@@ -21,6 +25,8 @@ class Dashboard:
         self.config = Config(config_file)
         self.db = Database(self.config.db_path)
         self.port = port
+        self.logger = Logger(self.config.log_file)
+        self.alerts = AlertSystem(self.config, self.db, self.logger)
         
         self.app = Flask(__name__)
         CORS(self.app)
@@ -129,6 +135,24 @@ class Dashboard:
                 'alert_counts': alert_counts,
                 'service_counts': service_counts
             })
+
+        @self.app.route('/api/status')
+        def get_status():
+            """Get configured services and recent activity counts"""
+            try:
+                configured = self.config.ports
+            except Exception:
+                configured = []
+
+            try:
+                service_counts = self.db.get_session_counts_by_service()
+            except Exception:
+                service_counts = {}
+
+            return jsonify({
+                'configured_ports': configured,
+                'service_counts': service_counts
+            })
         
         @self.app.route('/api/top-ips')
         def get_top_ips():
@@ -170,6 +194,107 @@ class Dashboard:
         def health():
             """Health check endpoint"""
             return jsonify({'status': 'ok'})
+
+        @self.app.route('/api/subscribe-email', methods=['POST'])
+        def subscribe_email():
+            """Subscribe an email address to alerts (stores in config and optionally sends confirmation)"""
+            try:
+                data = request.get_json(force=True)
+                email = (data or {}).get('email')
+                if not email or '@' not in email:
+                    return jsonify({'error': 'Invalid email'}), 400
+
+                # Persist subscription to database
+                try:
+                    self.db.add_subscription(email)
+                except Exception:
+                    # fallback: save to config if DB not writable
+                    self.config.data['alert_email'] = email
+                    try:
+                        self.config.save()
+                    except Exception:
+                        pass
+
+                # Attempt to send confirmation email if SMTP settings are provided via env or config
+                smtp_host = os.environ.get('SMTP_HOST') or self.config.data.get('smtp_host') or self.config.data.get('smtp_server')
+                smtp_port = int(os.environ.get('SMTP_PORT') or self.config.data.get('smtp_port') or 0)
+                smtp_user = os.environ.get('SMTP_USER') or self.config.data.get('smtp_user') or self.config.data.get('smtp_username')
+                smtp_pass = os.environ.get('SMTP_PASS') or self.config.data.get('smtp_pass') or self.config.data.get('smtp_password')
+                smtp_from = os.environ.get('SMTP_FROM') or self.config.data.get('smtp_from')
+
+                if smtp_host and smtp_port:
+                    try:
+                        msg = EmailMessage()
+                        msg['Subject'] = 'HoneyPot Alert Subscription'
+                        msg['From'] = smtp_from or smtp_user or f'no-reply@{smtp_host}'
+                        msg['To'] = email
+                        msg.set_content('You have been subscribed to HoneyPot alert notifications.')
+
+                        if smtp_port == 465:
+                            server = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=10)
+                        else:
+                            server = smtplib.SMTP(smtp_host, smtp_port, timeout=10)
+                            server.starttls()
+
+                        if smtp_user and smtp_pass:
+                            server.login(smtp_user, smtp_pass)
+
+                        server.send_message(msg)
+                        server.quit()
+                    except Exception:
+                        # don't fail subscription on email send failure
+                        pass
+
+                return jsonify({'status': 'subscribed', 'email': email})
+            except Exception as e:
+                return jsonify({'error': str(e)}), 500
+
+        @self.app.route('/api/subscriptions')
+        def list_subscriptions():
+            """Return list of subscribed emails"""
+            try:
+                subs = self.db.list_subscriptions()
+                return jsonify({'subscriptions': subs})
+            except Exception as e:
+                return jsonify({'error': str(e)}), 500
+
+        @self.app.route('/api/unsubscribe', methods=['POST'])
+        def unsubscribe():
+            """Remove an email subscription"""
+            try:
+                data = request.get_json(force=True)
+                email = (data or {}).get('email')
+                if not email:
+                    return jsonify({'error': 'email required'}), 400
+                removed = self.db.remove_subscription(email)
+                if removed:
+                    return jsonify({'status': 'unsubscribed', 'email': email})
+                else:
+                    return jsonify({'status': 'not_found', 'email': email}), 404
+            except Exception as e:
+                return jsonify({'error': str(e)}), 500
+
+        @self.app.route('/api/test-alert', methods=['POST'])
+        def test_alert():
+            """Send a test alert email to verify SMTP configuration"""
+            try:
+                data = request.get_json(force=True) or {}
+                email = data.get('email') or (self.config.alert_email.get('to')[0] if isinstance(self.config.alert_email, dict) and self.config.alert_email.get('to') else None)
+                
+                if not email:
+                    return jsonify({'error': 'No recipient email configured'}), 400
+
+                # Send test alert via the alert system (MEDIUM threat level)
+                self.alerts.send_alert(
+                    f'Test alert from HoneyPot Dashboard at {datetime.now().isoformat()}',
+                    threat_level=3,
+                    client_ip='127.0.0.1'
+                )
+                
+                return jsonify({'status': 'test_alert_sent', 'email': email})
+            except Exception as e:
+                return jsonify({'error': str(e)}), 500
+
     
     def run(self):
         """Start the dashboard"""

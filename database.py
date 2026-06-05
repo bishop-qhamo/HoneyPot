@@ -80,6 +80,16 @@ class Database:
             )
         ''')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_metric ON statistics(metric)')
+
+        # Subscriptions table for alert email addresses
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS subscriptions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT NOT NULL UNIQUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_sub_email ON subscriptions(email)')
         
         conn.commit()
         conn.close()
@@ -299,6 +309,59 @@ class Database:
         rows = cursor.fetchall()
         conn.close()
         return {int(row[0]): row[1] for row in rows}
+
+    def add_subscription(self, email):
+        """Add an email subscription (no duplicates). Returns lastrowid or 0 if ignored."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute('INSERT OR IGNORE INTO subscriptions (email) VALUES (?)', (email,))
+            conn.commit()
+            return cursor.lastrowid or 0
+        finally:
+            conn.close()
+
+    def remove_subscription(self, email):
+        """Remove an email subscription. Returns number of rows deleted."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute('DELETE FROM subscriptions WHERE email = ?', (email,))
+            conn.commit()
+            return cursor.rowcount
+        finally:
+            conn.close()
+
+    def list_subscriptions(self):
+        """Return list of subscriptions as dicts."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute('SELECT email, created_at FROM subscriptions ORDER BY created_at DESC')
+            rows = cursor.fetchall()
+            return [{'email': r[0], 'created_at': r[1]} for r in rows]
+        finally:
+            conn.close()
+
+    def enforce_max_sessions(self, max_sessions=10000):
+        """Remove oldest sessions to keep only the most recent max_sessions"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM sessions')
+        total_sessions = cursor.fetchone()[0]
+
+        if total_sessions > max_sessions:
+            cursor.execute('''
+                DELETE FROM sessions
+                WHERE id IN (
+                    SELECT id FROM sessions
+                    ORDER BY timestamp ASC
+                    LIMIT ?
+                )
+            ''', (total_sessions - max_sessions,))
+            conn.commit()
+
+        conn.close()
 
     def get_session_counts_by_service(self):
         """Get session counts grouped by service"""

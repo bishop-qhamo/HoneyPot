@@ -113,28 +113,6 @@ class HoneyPotCLI:
         
         print("-" * 40 + "\n")
     
-    def show_overview(self):
-        """Show threat overview and alert distribution"""
-        stats = self.db.get_stats()
-        alert_counts = self.db.get_alert_counts_by_level()
-        service_counts = self.db.get_session_counts_by_service()
-
-        print("\nHoneyPot Threat Overview")
-        print("=" * 30)
-        print(f"Total Sessions: {stats['total_sessions']}")
-        print(f"Total Alerts:   {stats['total_alerts']}")
-        print(f"New Alerts:     {stats['new_alerts']}\n")
-
-        print("Alerts by Threat Level:")
-        for level in sorted(alert_counts.keys(), reverse=True):
-            threat_name = ['UNKNOWN', 'INFO', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'][level] if 0 <= level <= 5 else 'UNKNOWN'
-            print(f"  {threat_name:8} : {alert_counts[level]}")
-
-        print("\nSessions by Service:")
-        for service, count in service_counts.items():
-            print(f"  {service:10} : {count}")
-        print("=" * 30 + "\n")
-
     def export_data(self, format='json', days=30):
         """Export sessions from last N days"""
         cutoff_date = datetime.now() - timedelta(days=days)
@@ -163,15 +141,8 @@ class HoneyPotCLI:
     def cleanup(self, days=30):
         """Clean up old data"""
         print(f"Cleaning data older than {days} days...")
-        try:
-            result = self.db.cleanup_old_data(days)
-            print("Cleanup complete:")
-            print(f"  Sessions removed: {result['sessions']}")
-            print(f"  Commands removed: {result['commands']}")
-            print(f"  Alerts removed:   {result['alerts']}")
-            print(f"  Statistics removed: {result['statistics']}")
-        except Exception as e:
-            print(f"Cleanup failed: {e}")
+        # This would require adding cleanup to database.py
+        print("Cleanup function not yet implemented")
     
     def create_backup(self):
         """Backup database"""
@@ -205,7 +176,6 @@ def main():
         'sessions': lambda: cli.show_sessions(args.limit),
         'top-ips': lambda: cli.show_top_ips(args.limit),
         'export': lambda: cli.export_data(args.format, args.days),
-        'cleanup': lambda: cli.cleanup(args.days),
         'backup': cli.create_backup,
     }
     

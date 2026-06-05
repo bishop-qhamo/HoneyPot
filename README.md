@@ -33,6 +33,19 @@ A comprehensive SSH/Telnet honeypot for detecting and logging attack attempts wi
 - Top attacking IPs
 - Threat visualization
 
+✅ **Fingerprint Evasion & Detection Avoidance**
+- Randomized SSH/Telnet banners (prevent automated scanner fingerprinting)
+- Realistic shell command responses with OS-specific behavior
+- Session-consistent personality emulation (per-connection OS/user profile)
+- Response timing jitter (Gaussian distribution + random spikes)
+- Varied login failure messages
+- TCP stack option randomization
+- Prevents detection by:
+  - Shodan/Censys automated scanners
+  - Honeypot detection tools (e.g., Nmap, p0f)
+  - Signature-based fingerprinting
+  - Temporal analysis attacks
+
 ## Installation
 
 ### 1. Clone and Setup
@@ -114,6 +127,7 @@ Dashboard available at: **http://localhost:5000**
 ```
 .
 ├── honeyPot.py              # Main honeypot server
+├── fingerprint_evasion.py   # Anti-detection & randomization
 ├── config.py                # Configuration management
 ├── database.py              # SQLite database layer
 ├── logger.py                # Logging system
@@ -126,6 +140,40 @@ Dashboard available at: **http://localhost:5000**
 ```
 
 ## Key Components
+
+### Fingerprint Evasion System
+
+The honeypot includes sophisticated anti-detection capabilities to avoid being identified by automated scanners and fingerprinting tools:
+
+**Behavioral Randomization:**
+- Multiple SSH server versions (OpenSSH 7.4, 8.0, 8.2, 9.0, libssh, Paramiko)
+- Varied Telnet welcome messages and banners
+- Realistic HTTP and FTP server identifications
+- Per-connection randomization prevents pattern matching
+
+**Session Personality Emulation:**
+- 5+ Linux OS variants plus FreeBSD and CentOS profiles
+- Consistent user/hostname per session (within same connection)
+- Realistic shell response generation for commands like `ls`, `whoami`, `uname`, `id`
+- Failed login messages vary realistically
+
+**Response Timing Jitter:**
+- Gaussian-distributed delays (not uniform) for realistic behavior
+- 5% chance of unexpected delays (100-500ms spikes) to simulate system load
+- Login delays between 0.2-0.8 seconds for authenticity
+
+**Command Response Engine:**
+- Adaptive responses based on OS personality (e.g., FreeBSD vs Ubuntu)
+- Realistic `ls` output with proper formatting and permissions
+- Shell errors for unavailable commands
+- Prevents static signature detection
+
+**Integration Details:**
+The `FingerprintEvasion` class is instantiated in `HoneyPot.__init__()` and used for:
+- Initializing randomized SSH/Telnet banners at startup
+- Generating responses via `evasion.generate_shell_response(command, session_id)`
+- Applying realistic delays via `evasion.get_response_delay()`
+- Emulating failed login attempts with `evasion.randomize_failed_login_response()`
 
 ### Threat Detection System
 

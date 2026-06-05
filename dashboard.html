@@ -348,6 +348,61 @@
             margin-left: 12px;
         }
 
+        .subscription-panel {
+            margin-top: 20px;
+            background: var(--panel-bg);
+            border-radius: 16px;
+            padding: 22px;
+            box-shadow: 0 16px 40px var(--shadow);
+            backdrop-filter: blur(12px);
+        }
+
+        .subscription-panel h2 {
+            margin-top: 0;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+        }
+
+        .subscription-panel p {
+            margin: 0 0 16px;
+            color: var(--muted);
+        }
+
+        .subscriptions-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .subscription-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.85);
+            border: 1px solid var(--button-border);
+        }
+
+        .subscription-item span {
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .unsubscribe-btn {
+            padding: 10px 14px;
+            border-radius: 999px;
+            border: 1px solid #ef4444;
+            background: #ffffff;
+            color: #b91c1c;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .unsubscribe-btn:hover {
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
         .search-results {
             background: var(--panel-bg);
             border-radius: 16px;
@@ -521,23 +576,42 @@
         <header>
             <h1>🍯 HoneyPot Security Dashboard</h1>
             <p>Real-time monitoring and threat detection system</p>
-            <div class="status">● Active and Monitoring</div>
-            <div class="status-meta" id="lastUpdate">Last updated: just now</div>
+            <div class="status" role="status" aria-live="polite"><span class="status-dot" aria-hidden="true">●</span> <span class="status-text">Active and Monitoring</span></div>
+            <div class="status-meta" id="lastUpdate" aria-live="polite" aria-atomic="true">Last updated: just now</div>
+            <div id="serviceStatus" style="margin-top:10px;color:var(--muted);font-weight:600" aria-live="polite">Services: loading…</div>
             <div class="theme-selector">
                 <span class="theme-label">Choose theme:</span>
-                <button class="theme-btn active" data-theme="dark" onclick="setTheme('dark', this)">Dark</button>
-                <button class="theme-btn" data-theme="light" onclick="setTheme('light', this)">Light</button>
-                <button class="theme-btn" data-theme="neon" onclick="setTheme('neon', this)">Neon</button>
-                <button class="refresh-btn" onclick="reloadDashboard()">Refresh Now</button>
+                <button type="button" class="theme-btn active" data-theme="dark" onclick="setTheme('dark', this)" aria-pressed="true" title="Switch to dark theme">Dark</button>
+                <button type="button" class="theme-btn" data-theme="light" onclick="setTheme('light', this)" aria-pressed="false" title="Switch to light theme">Light</button>
+                <button type="button" class="theme-btn" data-theme="neon" onclick="setTheme('neon', this)" aria-pressed="false" title="Switch to neon theme">Neon</button>
+                <button type="button" class="refresh-btn" onclick="reloadDashboard()" title="Reload dashboard data" aria-label="Refresh dashboard">Refresh Now</button>
+                <div style="display:flex;align-items:center;gap:8px;margin-left:12px;">
+                    <label for="alertEmailInput" style="font-weight:600;color:var(--muted);font-size:0.95rem;">Alert email:</label>
+                    <input id="alertEmailInput" type="email" placeholder="you@domain.com" style="padding:8px 12px;border-radius:8px;border:1px solid var(--button-border);" aria-label="Email address to receive alerts">
+                    <button type="button" id="saveEmailBtn" class="theme-btn" onclick="saveAlertEmail()" title="Save alert email">Save</button>
+                    <span id="alertEmailMessage" style="margin-left:8px;color:var(--muted);font-size:0.95rem"></span>
+                </div>
             </div>
             <div class="search-panel">
-                <input id="searchInput" class="search-input" type="search" placeholder="Search sessions by IP address..." />
-                <button class="search-btn" onclick="searchSessions()">Search</button>
-                <button class="search-btn clear-btn" onclick="clearSearch()">Clear</button>
+                <input id="searchInput" class="search-input" type="search" placeholder="Search sessions by IP address..." aria-label="Search sessions by IP address" />
+                <button type="button" class="search-btn" onclick="searchSessions()" title="Search sessions">Search</button>
+                <button type="button" class="search-btn clear-btn" onclick="clearSearch()" title="Clear search">Clear</button>
                 <span id="searchMessage" class="search-message"></span>
             </div>
         </header>
         
+        <div class="subscription-panel" id="subscriptionPanel">
+            <h2>Alert Subscriptions</h2>
+            <p>Subscribed email addresses will receive alert messages when suspicious activity is detected.</p>
+            <div id="subscriptionsList" class="subscriptions-list">
+                <div class="loading">Loading subscriptions...</div>
+            </div>
+            <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--button-border);">
+                <button type="button" class="search-btn" onclick="sendTestAlert()" title="Send a test alert email to verify SMTP configuration">Send Test Alert</button>
+                <span id="testAlertMessage" style="margin-left:12px;color:var(--muted);font-size:0.95rem"></span>
+            </div>
+        </div>
+
         <div class="search-results" id="searchResults" style="display:none;">
             <h2>Search Results</h2>
             <div class="search-summary" id="searchSummary"></div>
@@ -936,6 +1010,9 @@
         
         // Load data on page load
         initTheme();
+        loadServiceStatus();
+        loadAlertEmail();
+        loadSubscriptions();
         document.getElementById('searchInput').addEventListener('keypress', event => {
             if (event.key === 'Enter') {
                 searchSessions();
@@ -945,6 +1022,8 @@
         loadOverview();
         loadSessions(1);
         setLastUpdated();
+        // keep the last-updated timestamp live
+        setInterval(setLastUpdated, 1000);
         
         // Refresh stats and overview every 30 seconds
         setInterval(() => {
@@ -956,7 +1035,7 @@
             const lastUpdate = document.getElementById('lastUpdate');
             if (!lastUpdate) return;
             const now = new Date();
-            lastUpdate.textContent = `Last updated: ${now.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'})}`;
+            lastUpdate.textContent = `Last updated: ${now.toLocaleString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'})}`;
         }
 
         function reloadDashboard() {
@@ -965,7 +1044,141 @@
             loadSessions(1);
             loadAlerts(1);
             loadTopIps();
+            loadServiceStatus();
             setLastUpdated();
+        }
+
+        async function loadServiceStatus() {
+            const el = document.getElementById('serviceStatus');
+            try {
+                const resp = await fetch(`${API_BASE}/status`);
+                if (!resp.ok) throw new Error('Status fetch failed');
+                const data = await resp.json();
+                const counts = data.service_counts || {};
+                const configured = (data.configured_ports || []).map(p => `${p.service}(${p.port})`).join(' · ');
+                const active = Object.entries(counts).map(([s,c]) => `${s}: ${c}`).join(' · ');
+                el.textContent = `Configured: ${configured || 'N/A'} — Activity: ${active || 'none'}`;
+            } catch (e) {
+                el.textContent = 'Services: status unavailable';
+            }
+        }
+
+        // Alert email save/load
+        function validateEmail(email) {
+            try {
+                return /.+@.+\..+/.test(email);
+            } catch (e) { return false; }
+        }
+
+        async function saveAlertEmail() {
+            const input = document.getElementById('alertEmailInput');
+            const msg = document.getElementById('alertEmailMessage');
+            const email = input.value.trim();
+            if (!email) {
+                msg.textContent = 'Please enter an email.';
+                return;
+            }
+            if (!validateEmail(email)) {
+                msg.textContent = 'Invalid email format.';
+                return;
+            }
+
+            // optimistically save to localStorage
+            localStorage.setItem('alertEmail', email);
+
+            // try to notify backend endpoint; if unavailable, keep local copy
+            try {
+                const resp = await fetch(`${API_BASE}/subscribe-email`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                if (resp.ok) {
+                    msg.textContent = 'Alert email saved.';
+                    loadSubscriptions();
+                } else {
+                    msg.textContent = 'Saved locally (server unavailable).';
+                }
+            } catch (e) {
+                msg.textContent = 'Saved locally (offline).';
+            }
+            setTimeout(() => { msg.textContent = ''; }, 5000);
+        }
+
+        async function loadSubscriptions() {
+            const list = document.getElementById('subscriptionsList');
+            const emailInput = document.getElementById('alertEmailInput');
+            try {
+                const resp = await fetch(`${API_BASE}/subscriptions`);
+                if (!resp.ok) throw new Error('Unable to load subscriptions');
+                const data = await resp.json();
+                const subs = data.subscriptions || [];
+                if (subs.length === 0) {
+                    list.innerHTML = '<div class="loading">No subscriptions yet. Add an alert email to subscribe.</div>';
+                    return;
+                }
+                list.innerHTML = subs.map(sub => `
+                    <div class="subscription-item">
+                        <span>${sub.email}</span>
+                        <button type="button" class="unsubscribe-btn" onclick="unsubscribeEmail('${sub.email}')">Unsubscribe</button>
+                    </div>
+                `).join('');
+                if (!emailInput.value && subs[0]) {
+                    emailInput.value = subs[0].email;
+                }
+            } catch (error) {
+                list.innerHTML = '<div class="loading">Unable to load subscriptions.</div>';
+            }
+        }
+
+        async function unsubscribeEmail(email) {
+            const list = document.getElementById('subscriptionsList');
+            try {
+                const resp = await fetch(`${API_BASE}/unsubscribe`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                if (resp.ok) {
+                    loadSubscriptions();
+                } else {
+                    list.innerHTML = '<div class="loading">Unable to remove subscription.</div>';
+                }
+            } catch (error) {
+                list.innerHTML = '<div class="loading">Unable to remove subscription.</div>';
+            }
+        }
+
+        async function sendTestAlert() {
+            const msg = document.getElementById('testAlertMessage');
+            try {
+                msg.textContent = 'Sending test alert...';
+                const resp = await fetch(`${API_BASE}/test-alert`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                if (resp.ok) {
+                    msg.textContent = 'Test alert sent! Check your email.';
+                } else {
+                    const err = await resp.json();
+                    msg.textContent = `Error: ${err.error || 'Unable to send test alert'}`;
+                }
+            } catch (error) {
+                msg.textContent = `Error: ${error.message}`;
+            }
+            setTimeout(() => { msg.textContent = ''; }, 8000);
+        }
+
+        function loadAlertEmail() {
+            const input = document.getElementById('alertEmailInput');
+            const msg = document.getElementById('alertEmailMessage');
+            const email = localStorage.getItem('alertEmail');
+            if (email) {
+                input.value = email;
+                msg.textContent = `Alerts will be sent to ${email}`;
+                setTimeout(() => { msg.textContent = ''; }, 5000);
+            }
         }
     </script>
 </body>

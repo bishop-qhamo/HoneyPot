@@ -1,0 +1,18 @@
+<svg width="900" height="520" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .title { font: bold 22px sans-serif; fill:#111827; }
+    .label { font: 16px sans-serif; fill:#111827; }
+    .slice { stroke:#ffffff; stroke-width:2; }
+  </style>
+  <text class="title" x="20" y="40">Service Attack Volume Breakdown</text>
+  <circle cx="500" cy="300" r="160" fill="#93c5fd" class="slice"/>
+  <path class="slice" d="M500,300 L660,272 A160,160 0 0,1 601,156 Z" fill="#f97316"/>
+  <path class="slice" d="M500,300 L601,156 A160,160 0 0,1 458,124 Z" fill="#22c55e"/>
+  <path class="slice" d="M500,300 L458,124 A160,160 0 0,1 313,227 Z" fill="#ef4444"/>
+  <path class="slice" d="M500,300 L313,227 A160,160 0 0,1 430,418 Z" fill="#facc15"/>
+  <text class="label" x="690" y="260">SSH: 28%</text>
+  <text class="label" x="690" y="290">Telnet: 22%</text>
+  <text class="label" x="690" y="320">HTTP: 18%</text>
+  <text class="label" x="690" y="350">FTP: 17%</text>
+  <text class="label" x="690" y="380">RDP: 15%</text>
+</svg>
