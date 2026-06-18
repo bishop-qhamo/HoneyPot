@@ -228,11 +228,21 @@ Analyzes threats across multiple dimensions:
     "to": "admin@example.com",
     "smtp_server": "smtp.gmail.com",
     "smtp_port": 587,
-    "username": "your-email",
-    "password": "your-password"
+    "username": "your-email@gmail.com",
+    "password": ""
   }
 }
 ```
+
+The app also supports secure SMTP credentials from environment variables:
+
+- `SMTP_USER` — your email address
+- `SMTP_PASS` — your app password
+- `SMTP_SERVER` — SMTP host (e.g. `smtp.gmail.com`)
+- `SMTP_PORT` — SMTP port (e.g. `587`)
+- `SMTP_TLS` — `true` to enable STARTTLS
+
+Use a Gmail app password instead of your normal account password when `2-Step Verification` is enabled.
 
 ### Webhook Integration
 
@@ -252,6 +262,8 @@ Webhook will receive JSON payload:
   "client_ip": "192.168.1.100"
 }
 ```
+
+The webhook sender includes retry logic: if the webhook endpoint fails or returns a non-200 response, the system retries up to 3 times with incremental delay.
 
 ## Monitoring Commands
 

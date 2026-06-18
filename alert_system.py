@@ -6,6 +6,7 @@ Sends notifications for threats
 import json
 import os
 import smtplib
+import time
 import requests
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -151,30 +152,39 @@ This is an automated alert from the HoneyPot security system.
             self._log('error', f"Failed to send email alert: {e}")
     
     def _notify_webhook(self, alert):
-        """Send webhook notification"""
+        """Send webhook notification with retry logic"""
         if not self.config.alert_webhook:
             return
-        
-        try:
-            payload = {
-                'timestamp': str(alert['timestamp']),
-                'message': alert['message'],
-                'threat_level': alert['threat_level'],
-                'level_name': alert['level_name'],
-                'client_ip': alert['client_ip']
-            }
-            
-            response = requests.post(
-                self.config.alert_webhook,
-                json=payload,
-                timeout=5
-            )
-            
-            if response.status_code != 200:
-                self._log('warning', f"Webhook returned status {response.status_code}")
-        
-        except Exception as e:
-            self._log('error', f"Failed to send webhook notification: {e}")
+
+        payload = {
+            'timestamp': str(alert['timestamp']),
+            'message': alert['message'],
+            'threat_level': alert['threat_level'],
+            'level_name': alert['level_name'],
+            'client_ip': alert['client_ip']
+        }
+
+        max_attempts = 3
+        retry_delay_seconds = 2
+        for attempt in range(1, max_attempts + 1):
+            try:
+                response = requests.post(
+                    self.config.alert_webhook,
+                    json=payload,
+                    timeout=10
+                )
+
+                if response.status_code == 200:
+                    return
+
+                self._log('warning', f"Webhook returned status {response.status_code} on attempt {attempt}")
+            except Exception as e:
+                self._log('warning', f"Webhook send attempt {attempt} failed: {e}")
+
+            if attempt < max_attempts:
+                time.sleep(retry_delay_seconds * attempt)
+
+        self._log('error', "Failed to send webhook notification after multiple attempts")
     
     def get_recent_alerts(self, limit=50):
         """Get recent alerts"""

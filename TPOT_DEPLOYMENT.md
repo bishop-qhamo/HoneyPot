@@ -171,7 +171,7 @@ python honeyPot_v2.py
     "smtp_server": "smtp.gmail.com",
     "smtp_port": 587,
     "username": "your-email@gmail.com",
-    "password": "your-app-password"
+    "password": ""
   },
   "alert_webhook": "https://your-webhook-url.com/honeypot",
   "max_sessions_to_keep": 10000,
@@ -196,6 +196,14 @@ python honeyPot_v2.py
   ]
 }
 ```
+
+If you prefer not to store SMTP credentials in `config.json`, set these environment variables instead:
+
+- `SMTP_USER=your-email@gmail.com`
+- `SMTP_PASS=your-gmail-app-password`
+- `SMTP_SERVER=smtp.gmail.com`
+- `SMTP_PORT=587`
+- `SMTP_TLS=true`
 
 ## Kibana Setup
 
