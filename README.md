@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🍯 Advanced Honeypot System
 
 A comprehensive SSH/Telnet honeypot for detecting and logging attack attempts with real-time threat detection, database storage, alerts, and a web dashboard.
